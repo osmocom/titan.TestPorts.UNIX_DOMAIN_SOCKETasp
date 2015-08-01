@@ -1,0 +1,71 @@
+/******************************************************************************
+* Copyright (c) 2010, 2015  Ericsson AB
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+* Krisztian Pandi
+******************************************************************************/
+//
+//  File:               UD_Types.ttcn
+//  Description:        UD definition file
+//  Rev:                R2A
+//  Prodnr:             CNL 113 702 
+//
+
+
+module UD_Types
+{    
+
+type octetstring PDU_UD;
+type charstring Path;
+
+type enumerated UD_Result_code { ERROR (0),
+  SUCCESS(1)}
+
+type record UD_Result{
+  UD_Result_code result_code optional,
+  charstring        err  optional
+}
+
+type record UD_close{
+  integer           id
+}
+
+type record UD_connect{
+  Path              path,
+  integer           id
+}
+
+type record UD_connect_result{
+  integer           id,
+  UD_Result         result optional
+}
+
+type record UD_send_data{
+  PDU_UD           data,
+  integer           id
+}
+
+type record UD_connected{
+  Path              path,
+  integer           id,
+  UD_Result         result optional
+}
+
+type record UD_listen{
+  Path              path
+}
+
+type record UD_listen_result{
+  integer           id,
+  UD_Result         result optional
+}
+
+type record UD_shutdown{
+  integer           id
+}
+
+}

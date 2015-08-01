@@ -1,0 +1,70 @@
+/******************************************************************************
+* Copyright (c) 2010, 2015  Ericsson AB
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+* Krisztian Pandi
+******************************************************************************/
+//
+//  File:               UDtest.ttcn
+//  Description:        UD port type test
+//  Rev:                R2A
+//  Prodnr:             CNL 113 702
+//
+module UDtest {
+
+import from UD_Types all;
+import from UD_PortType all;
+
+const charstring cg_socket := "/home/ekripnd/workspace/UD2"
+
+type component UD_comptype {
+    port UD_PT server_PORT;
+    port UD_PT client1_PORT;
+    port UD_PT client2_PORT;
+    
+    var UD_connect_result vl_con1, vl_con2;
+
+    timer Tl_timer := 0.2;
+}
+
+testcase tc1() runs on UD_comptype
+{
+  map(mtc:server_PORT,  system:server_PORT);
+  map(mtc:client1_PORT, system:client1_PORT);
+  map(mtc:client2_PORT, system:client2_PORT);
+    
+  server_PORT.send(UD_listen:{path:=cg_socket});
+  server_PORT.receive(UD_listen_result:{id:=?,result:=*});
+
+  client1_PORT.send(UD_connect:{path:=cg_socket, id:=0});
+  client1_PORT.receive(UD_connect_result:{ id:=?,result:=*}) -> value vl_con1;
+  server_PORT.receive(UD_connected:{path:=cg_socket, id:=?,result:=*})
+  
+  client2_PORT.send(UD_connect:{path:=cg_socket, id:=1});
+  client2_PORT.receive(UD_connect_result:{ id:=?,result:=*}) -> value vl_con2;
+  server_PORT.receive(UD_connected:{path:=cg_socket, id:=?,result:=*});
+
+  client1_PORT.send(UD_send_data:{data:='0123'O, id:=vl_con1.id});
+  server_PORT.receive(UD_send_data:{data:='0123'O, id:=?});
+
+  client2_PORT.send(UD_send_data:{data:='ABCD'O, id:=vl_con2.id});
+  server_PORT.receive(UD_send_data:{data:='ABCD'O, id:=?});
+
+  client1_PORT.send(UD_close:{id:=vl_con1.id});
+  client2_PORT.send(UD_close:{id:=vl_con2.id});
+  server_PORT.send(UD_shutdown:{id:=0});
+
+    
+
+  Tl_timer.start;
+  Tl_timer.timeout;
+
+  unmap(mtc:server_PORT,  system:server_PORT);
+  unmap(mtc:client1_PORT, system:client1_PORT);
+  unmap(mtc:client2_PORT, system:client2_PORT);
+}
+}
