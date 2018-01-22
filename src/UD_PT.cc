@@ -33,6 +33,7 @@ UD__PT_PROVIDER::UD__PT_PROVIDER(const char *par_port_name)
 : PORT(par_port_name)
 , debugging(false)
 , target_fd(-1)
+, sock_type(SOCK_STREAM)
 {
 	conn_list = NULL;
 	num_of_conn  = 0;
@@ -120,6 +121,20 @@ void UD__PT_PROVIDER::set_parameter(const char *parameter_name,
 		const char *parameter_value)
 {
 	log("entering UD__PT::set_parameter(%s, %s)", parameter_name, parameter_value);
+
+	if (!strcmp(parameter_name, "socket_type")) {
+#ifdef SOCK_SEQPACKET
+		if (!strcasecmp(parameter_value, "SEQPACKET"))
+			sock_type = SOCK_SEQPACKET;
+		else
+#endif
+		if (!strcasecmp(parameter_value, "STREAM"))
+			sock_type = SOCK_STREAM;
+		else if (!strcasecmp(parameter_value, "DGRAM"))
+			sock_type = SOCK_DGRAM;
+		else
+			TTCN_warning("UD__PT_PROVIDER::set_parameter: %s: Invalid %s value '%s'", port_name, parameter_name, parameter_value);
+	}
 
 	log("leaving UD__PT::set_parameter(%s, %s)", parameter_name, parameter_value);
 }
@@ -316,7 +331,7 @@ void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__connect& send_par)
 		conn_list_length*=2;
 	}
 
-	if((target_fd = socket(PF_UNIX,SOCK_STREAM,0))<0) {
+	if((target_fd = socket(PF_UNIX,sock_type,0))<0) {
 		TTCN_error("Cannot open socket \n");
 	}
 
@@ -379,7 +394,7 @@ void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__listen& send_par)
 		conn_list_length_server*=2;
 	}
 
-	if((target_fd = socket(PF_UNIX,SOCK_STREAM,0))<0) {
+	if((target_fd = socket(PF_UNIX,sock_type,0))<0) {
 		TTCN_warning("Cannot open socket \n");
 
 	}

@@ -79,6 +79,7 @@ private:
   bool operation_mode;  // false: basic mode. One socket.
                    // true: advanced mode. The new features are activated
   bool broadcast;
+  int sock_type;
   
   struct conn_data{
     int fd;
