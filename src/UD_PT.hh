@@ -41,6 +41,25 @@ public:
   void set_parameter(const char *parameter_name,
     const char *parameter_value);
 
+  struct conn_data{
+    int fd;
+    //int port_num;
+    int status;
+    //struct sockaddr_in remote_Addr;
+    struct sockaddr_un remote_Addr;
+    int msgLen; // -1 or the message length returned by getMsgLen
+    TTCN_Buffer **buf;
+    Socket__API__Definitions::f__getMsgLen getMsgLen;
+    Socket__API__Definitions::ro__integer *msgLenArgs;
+  };
+
+  conn_data *conn_list;
+
+  inline bool isConnIdValid(int connId) const {
+    return (connId < conn_list_length && connId >= 0 &&
+        conn_list != NULL && conn_list[connId].fd > 0);
+  }
+
   /**void Event_Handler(const fd_set *read_fds,
     const fd_set *write_fds, const fd_set *error_fds,
     double time_since_last_call);*/
@@ -80,24 +99,15 @@ private:
                    // true: advanced mode. The new features are activated
   bool broadcast;
   int sock_type;
+  Socket__API__Definitions::f__getMsgLen defaultGetMsgLen;
+  Socket__API__Definitions::ro__integer *defaultMsgLenArgs;
   
-  struct conn_data{
-    int fd;
-    //int port_num;
-    int status;
-    //struct sockaddr_in remote_Addr;
-    struct sockaddr_un remote_Addr;
-  };
-  
-
   struct conn_data_server{
       int fd;
       int status;
       struct sockaddr_un remote_Addr;
       int conn;
     };
-
-  conn_data *conn_list;
 
   conn_data_server *conn_list_server;
 
@@ -112,6 +122,13 @@ private:
   int conn;
   ///
   struct sockaddr_un serveraddr;
+
+public:
+  friend void f__UD__PT_PROVIDER__setGetMsgLen(
+			UD__PT_PROVIDER& portRef,
+			const INTEGER& connId,
+			Socket__API__Definitions::f__getMsgLen& f,
+			const Socket__API__Definitions::ro__integer& msgLenArgs);
 
 };
 }

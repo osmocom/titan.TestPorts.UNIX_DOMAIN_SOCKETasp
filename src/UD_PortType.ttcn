@@ -32,4 +32,10 @@ import from UD_Types all;
     
   } with { extension "provider" }
 
+  external function f_UD_setGetMsgLen(
+    inout UD_PT portRef,
+    in integer connId := -1,
+    inout f_getMsgLen f,
+    in ro_integer msgLenArgs
+  );
 }
