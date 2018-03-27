@@ -32,8 +32,8 @@ namespace UD__PortType {
 UD__PT_PROVIDER::UD__PT_PROVIDER(const char *par_port_name)
 : PORT(par_port_name)
 , debugging(false)
-, target_fd(-1)
 , sock_type(SOCK_STREAM)
+, target_fd(-1)
 {
 	conn_list = NULL;
 	num_of_conn  = 0;
