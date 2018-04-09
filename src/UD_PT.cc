@@ -17,6 +17,8 @@
 
 
 #include "UD_PT.hh"
+#include "UD_PortType.hh"
+#include "UD_Types.hh"
 
 #include <netdb.h>
 #include <stdio.h>
@@ -27,13 +29,20 @@
 #define DEFAULT_LOCAL_PORT	(50000)
 #define DEFAULT_NUM_CONN	(10)
 
+using namespace UD__Types;
+
 namespace UD__PortType {
+
+INTEGER simpleGetMsgLen(const OCTETSTRING& stream, ro__integer& /*args*/)
+{
+	return stream.lengthof();
+}
 
 UD__PT_PROVIDER::UD__PT_PROVIDER(const char *par_port_name)
 : PORT(par_port_name)
 , debugging(false)
-, target_fd(-1)
 , sock_type(SOCK_STREAM)
+, target_fd(-1)
 {
 	conn_list = NULL;
 	num_of_conn  = 0;
@@ -43,6 +52,8 @@ UD__PT_PROVIDER::UD__PT_PROVIDER(const char *par_port_name)
 	conn_list_server = NULL;
 	num_of_conn_server  = 0;
 	conn_list_length_server = 0;
+	defaultGetMsgLen = simpleGetMsgLen;
+	defaultMsgLenArgs = new ro__integer(NULL_VALUE);
 }
 
 UD__PT_PROVIDER::~UD__PT_PROVIDER()
@@ -171,6 +182,8 @@ void UD__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 						int close_fd=conn_list[a].fd;
 						std::cout << "close_fd" << close_fd << std::endl;
 						conn_list[a].status=0;
+						Free(conn_list[a].buf);
+						conn_list[a].buf = NULL;
 						num_of_conn--;
 						Handler_Remove_Fd_Read(close_fd);
 						close(close_fd);
@@ -178,11 +191,41 @@ void UD__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 						//unlink(conn_list[a].remote_Addr.sun_path);
 					}
 					else{
+						if (sock_type == SOCK_STREAM) {
+							/* append just-read data to the buffer */
+							(*conn_list[a].buf)->put_s(size_read, msg);
 
-					parameters.data() = OCTETSTRING(size_read, msg);
-
-					parameters.id() = a;
-					incoming_message(parameters);
+							bool msgFound = false;
+							do {
+								/* determine message length by callback function */
+								if (conn_list[a].getMsgLen != simpleGetMsgLen) {
+									if (conn_list[a].msgLen == -1) {
+										OCTETSTRING oct;
+										(*conn_list[a].buf)->get_string(oct);
+										conn_list[a].msgLen = conn_list[a].getMsgLen.invoke(oct, *conn_list[a].msgLenArgs);
+									}
+								} else {
+									conn_list[a].msgLen = (*conn_list[a].buf)->get_len();
+								}
+								/* did we find a complete message inside the buffer? */
+								msgFound = (conn_list[a].msgLen != -1) && (conn_list[a].msgLen <= (int)conn_list[a].buf[0]->get_len());
+								if (msgFound) {
+									parameters.data() = OCTETSTRING(conn_list[a].msgLen, conn_list[a].buf[0]->get_data());
+									conn_list[a].buf[0]->set_pos((size_t)conn_list[a].msgLen);
+									conn_list[a].buf[0]->cut();
+									parameters.id() = a;
+									incoming_message(parameters);
+									conn_list[a].msgLen = -1;
+								}
+								/* continue to iterate as long as data is left and callback continues to find full messages inside */
+							} while (msgFound && conn_list[a].buf[0]->get_len() != 0);
+						} else {
+							/* SOCK_DGRAM, SOCK_SEQPACKET: forward directly to
+							 * testsuite, bypassing buffering + getMsgLen() */
+							parameters.data() = OCTETSTRING(size_read, msg);
+							parameters.id() = a;
+							incoming_message(parameters);
+						}
 					}
 				}
 			}
@@ -356,6 +399,14 @@ void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__connect& send_par)
 	conn_list[cn].fd=target_fd;
 	conn_list[cn].status=1;
 	conn_list[cn].remote_Addr.sun_family = AF_UNIX;
+	conn_list[cn].getMsgLen = defaultGetMsgLen;
+	conn_list[cn].msgLenArgs = new ro__integer(*defaultMsgLenArgs);
+	if (sock_type == SOCK_STREAM) {
+		conn_list[cn].buf = (TTCN_Buffer **)Malloc(sizeof(TTCN_Buffer *));
+		*conn_list[cn].buf = new TTCN_Buffer;
+		conn_list[cn].msgLen = -1;
+	} else
+		conn_list[cn].buf = NULL;
 
 	strcpy(conn_list[cn].remote_Addr.sun_path,send_par.path());
 
@@ -508,6 +559,27 @@ void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__send__data& send_par)
 
 	log("leaving UDPasp__PT::outgoing_send(ASP__UDP__message)");
 
+}
+
+void f__UD__PT_PROVIDER__setGetMsgLen(UD__PT_PROVIDER& portRef, const INTEGER& connId, f__UD__getMsgLen& f, const ro__integer& msgLenArgs)
+{
+	if ((int)connId == -1) {
+		portRef.defaultGetMsgLen = f;
+		delete portRef.defaultMsgLenArgs;
+		portRef.defaultMsgLenArgs = new Socket__API__Definitions::ro__integer(msgLenArgs);
+	} else {
+		if (!portRef.isConnIdValid(connId)) {
+			TTCN_error("UD: cannot setGetMsgLen: connId %d not valid", (int)connId);
+			return;
+		}
+		portRef.conn_list[(int)connId].getMsgLen = f;
+		delete portRef.conn_list[connId].msgLenArgs;
+		portRef.conn_list[connId].msgLenArgs = new Socket__API__Definitions::ro__integer(msgLenArgs);
+	}
+}
+
+void f__UD__setGetMsgLen(UD__PT& portRef, const INTEGER& connId, f__UD__getMsgLen& f, const ro__integer& msgLenArgs) {
+	f__UD__PT_PROVIDER__setGetMsgLen(portRef, connId, f, msgLenArgs);
 }
 
 

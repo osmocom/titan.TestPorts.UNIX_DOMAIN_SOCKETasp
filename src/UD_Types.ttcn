@@ -19,6 +19,14 @@
 module UD_Types
 {    
 
+import from Socket_API_Definitions all;
+
+type Socket_API_Definitions.ro_integer ro_integer;
+type Socket_API_Definitions.f_getMsgLen f_getMsgLen;
+
+type f_getMsgLen f_UD_getMsgLen;
+
+
 type octetstring PDU_UD;
 type charstring Path;
 
