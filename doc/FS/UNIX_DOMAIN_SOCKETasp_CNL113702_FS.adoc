@@ -1,0 +1,137 @@
+---
+Author: János Kövesdi
+Version: 155 17-CNL 113 702, Rev. A
+Date: 2013-09-06
+
+---
+= Unix Domain Socket Test Port for TTCN-3 Toolset with TITAN, Function Specification
+:author: János Kövesdi
+:revnumber: 155 17-CNL 113 702, Rev. A
+:revdate: 2013-09-06
+:toc:
+
+== How to Read This Document
+
+This is the Function Specification for the UD test port. The UD test port is developed for the TTCN-3 Toolset with TITAN. This document is intended to be read together with the User’s Guide <<_3, [3]>>.
+
+== Scope
+
+The purpose of this document is to specify the functionality of the UD test port. The document is primarily addressed to the end users of the product. Basic knowledge of TTCN-3 and TITAN TTCN-3 Test Executor is valuable when reading this 2, document (see <<_1, [1]>> and <<_2, [2]>>).
+
+This document is based on specifications of Unix Domain Socket Protocol.
+
+= General
+
+The UD Test Port makes it possible to execute test suites towards a SUT. The test port offers UD primitives to the test suite and communicates with the SUT.
+
+The communication between the UD test port and the TITAN RTE is done by using the API functions described in <<_2, [2]>>. The UD protocol messages are then transferred by the UD test port to the SUT.
+
+See the overview of the system below:
+
+image:images/Overview.png[alt]
+
+= Function Specification
+
+== Implementation
+
+The UD layer is implemented in UNIX kernel. The test port implements the communication between UNIX UD sockets and the TTCN-3 UD.
+
+=== Module Structure
+
+The UD test port is implemented in the following TTCN-3 blocks:
+
+* __UD_Types.ttcn__
+* __UD_PortType.ttcn__
+
+The file __UD_Types.ttcn__ defines the UDP ASP. The port type is defined in __UD_PortType.ttcn__.
+
+The C++ implementation of the test port is contained in the following files:
+
+* __UD_PT.hh__
+* __UD_PT.cc__
+
+== Configuration
+
+None.
+
+== Operation Mode
+
+Operation mode of the test port
+
+* A UD interface provides the following port operations: create server socket, create client socket, close client/server socket, send and receive data. One test port can handle multiple UD sockets.
+
+== Start Procedure
+
+The user has to make sure that the target system is up and running. When the executable test suite is started it initializes the UD socket. After the initialization is ready, the transmission of the ASPs can begin.
+
+[[sending-receiving-ud-asps]]
+== Sending/Receiving UD ASPs
+
+When the communication between the UD test port and the target system is set up, the test port starts transferring the UD primitives towards the TITAN RTE and UD streams towards the SUT.
+
+=== UD ASP Sent by the Test Port
+
+The UD test port is able to send the following UDs:
+
+* `UD_send_data`
+* `UD_close`
+* `UD_connect`
+* `UD_listen`
+* `UD_shutdown`
+
+=== UD ASP Received by the Test Port
+
+The UD test port is able to receive the following type of UDP primitives:
+
+* `UD_send_data`
+
+== Logging
+
+The type of information that will be logged can be categorized into two groups. The first one consists of information that shows the flow of the internal execution of the test port, for example, important events, which function that is currently executing etc. The second group deals with presenting valuable data, e.g. presenting the content of a PDU. The logging printouts will be directed to the RTE log file. The user is able to decide whether logging is to take place or not by setting appropriate configuration data, see <<_3, [3]>>.
+
+== Error Handling
+
+Erroneous behaviour detected during runtime is shown on the console and directed into the RTE log file. The following two types of messages are handled:
+
+* Errors: information about errors detected is provided. If an error occurs the execution of the test case will stop immediately and the socket will be closed.
+* Warnings: information about warnings detected is provided. The execution continues after the warning is shown.
+
+== Closing Down
+
+After the test port has executed all test cases it will stop automatically. It will close down the UD socket towards the SUT and terminate.
+
+The execution of the test suite can be stopped at any time by pressing `<Ctrl>-c`. Before the executable terminates the socket is closed down.
+
+== Limitations
+
+The operating system is Solaris 5.8.
+
+= Terminology
+
+None.
+
+= Abbreviations
+
+API:: Application Programming Interface
+
+ASP:: Abstract Service Primitive
+
+RTE:: Run-Time Environment
+
+SUT:: System Under Test
+
+TTCN-3:: Testing and Test Control Notation version 3
+
+UD:: Unix Domain
+
+= References
+
+[[_1]]
+[1] ETSI ES 201 873-1 (2002) +
+The Testing and Test Control Notation version 3. Part 1: Core Language
+
+[[_2]]
+[2] User Guide for the TITAN TTCN-3 Test Executor
+
+[[_3]]
+[3] Unix Domain Socket Test Port for TTCN-3 Toolset with TITAN, User Guide
