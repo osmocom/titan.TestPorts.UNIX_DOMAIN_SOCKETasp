@@ -172,6 +172,7 @@ void UD__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 
 				if(conn_list[a].status){
 					int size_read = recv(conn_list[a].fd, msg, sizeof(msg), 0);
+					FLOAT recv_time = TTCN_Runtime::now();
 
 					if (size_read <= 0){
 						//there is an empty message, or error in receive
@@ -211,7 +212,7 @@ void UD__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 									conn_list[a].buf[0]->set_pos((size_t)conn_list[a].msgLen);
 									conn_list[a].buf[0]->cut();
 									parameters.id() = a;
-									incoming_message(parameters);
+									incoming_message(parameters, recv_time);
 									conn_list[a].msgLen = -1;
 								}
 								/* continue to iterate as long as data is left and callback continues to find full messages inside */
@@ -221,7 +222,7 @@ void UD__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 							 * testsuite, bypassing buffering + getMsgLen() */
 							parameters.data() = OCTETSTRING(size_read, msg);
 							parameters.id() = a;
-							incoming_message(parameters);
+							incoming_message(parameters, recv_time);
 						}
 					}
 				}
@@ -238,6 +239,7 @@ void UD__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 				if(fd == conn_list_server[a].fd){
 
 					struct sockaddr_un store_addr;
+					FLOAT accept_time;
 
 					strcpy(store_addr.sun_path, conn_list_server[a].remote_Addr.sun_path);
 
@@ -257,6 +259,7 @@ void UD__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 					if(
 							(conn_list[cn].fd = accept(conn_list_server[a].fd, (struct sockaddr*)&conn_list_server[a].remote_Addr, &addr_length))
 							>= 0 ){
+						accept_time = TTCN_Runtime::now();
 						conn_list[cn].status = 1;
 
 						num_of_conn++;
@@ -269,6 +272,7 @@ void UD__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 
 					}
 					else{
+						accept_time = TTCN_Runtime::now();
 						result.result()().result__code() = UD__Types::UD__Result__code::ERROR_;
 						result.result()().err() = "Accept rejected";
 					}
@@ -276,7 +280,7 @@ void UD__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 					result.id()=cn;
 					result.path() = conn_list[cn].remote_Addr.sun_path;
 
-					incoming_message(result);
+					incoming_message(result, accept_time);
 
 					Handler_Add_Fd_Read(conn_list[cn].fd);
 				}
@@ -330,7 +334,7 @@ void UD__PT_PROVIDER::user_stop()
 
 
 
-void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__close& send_par)
+void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__close& send_par, FLOAT *timestamp_redirect)
 {
 	  log("entering UD__PT::outgoing_send(UD__close)");
 	  int close_fd=conn_list[send_par.id()].fd;
@@ -341,11 +345,13 @@ void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__close& send_par)
 	  Handler_Remove_Fd_Read(close_fd);
 
 	  close(close_fd);
+	  if (timestamp_redirect)
+		  *timestamp_redirect = TTCN_Runtime::now();
 
 	  log("leaving UD__PT::outgoing_send(UD__close)");
 }
 
-void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__connect& send_par)
+void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__connect& send_par, FLOAT *timestamp_redirect)
 {
 	//Client connects to certain server
 	log("entering UD__PT::outgoing_send(UD__connect)");
@@ -379,7 +385,10 @@ void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__connect& send_par)
 	serveraddrLength = sizeof(serveraddr.sun_family) + strlen(serveraddr.sun_path);
 	serveraddr.sun_family = AF_UNIX;
 
-	if(connect(target_fd, (struct sockaddr *) &serveraddr, serveraddrLength) != 0)
+	int rc = connect(target_fd, (struct sockaddr *) &serveraddr, serveraddrLength);
+	if (timestamp_redirect)
+		*timestamp_redirect = TTCN_Runtime::now();
+	if(rc != 0)
 	//if(connect(send_par.id(), (struct sockaddr *) &serveraddr, serveraddrLength) != 0)
 	{
 
@@ -421,7 +430,7 @@ void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__connect& send_par)
 
 }
 
-void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__listen& send_par)
+void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__listen& send_par, FLOAT *timestamp_redirect)
 {
 	log("entering UD__PT::outgoing_send(UD__listen)");
 	int cn;
@@ -459,7 +468,10 @@ void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__listen& send_par)
 
 	}
 
-	if(listen(target_fd, 5)){
+	int rc = listen(target_fd, 5);
+	if (timestamp_redirect)
+		*timestamp_redirect = TTCN_Runtime::now();
+	if(rc){
 		TTCN_warning("Error while listening");
 		result.result()().result__code() = UD__Types::UD__Result__code::ERROR_;
 	}
@@ -523,7 +535,7 @@ void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__shutdown& send_par)
 	log("leaving UD__PT::outgoing_send(UD__Shutdown)");
 }
 
-void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__send__data& send_par)
+void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__send__data& send_par, FLOAT *redirect_timestamp)
 {
 	log("entering UD__PT::outgoing_send(UD__send__data)");
 	logHex("Sending data: ", send_par.data());
@@ -547,6 +559,8 @@ void UD__PT_PROVIDER::outgoing_send(const UD__Types::UD__send__data& send_par)
 	{
 		TTCN_error("Write error");
 	}
+	if (redirect_timestamp)
+		*redirect_timestamp = TTCN_Runtime::now();
 
 	log("Nr of bytes sent = %d", nrOfBytesSent);
 
