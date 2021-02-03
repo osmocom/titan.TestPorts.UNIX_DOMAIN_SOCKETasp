@@ -150,9 +150,6 @@ void UD__PT_PROVIDER::set_parameter(const char *parameter_name,
 	log("leaving UD__PT::set_parameter(%s, %s)", parameter_name, parameter_value);
 }
 
-/**void UD__PT_PROVIDER::Event_Handler(const fd_set *read_fds,
-		const fd_set *write_fds, const fd_set *error_fds,
-		double time_since_last_call)*/
 void UD__PT_PROVIDER::Handle_Fd_Event_Error(int fd)
 {
 }
@@ -163,7 +160,7 @@ void UD__PT_PROVIDER::Handle_Fd_Event_Writable(int fd)
 
 void UD__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 {
-	log("entering UD__PT::Event_Handler()");
+	log("entering UD__PT::Handle_Fd_Event_Readable()");
 	unsigned char msg[65535];        // Allocate memory for possible messages
 
 	//UD__Types::UD__send__data__s parameters_s;
@@ -290,7 +287,7 @@ void UD__PT_PROVIDER::Handle_Fd_Event_Readable(int fd)
 
 
 	//}
-	log("leaving UD__PT::Event_Handler()");
+	log("leaving UD__PT::Handle_Fd_Event_Readable()");
 }
 
 void UD__PT_PROVIDER::user_map(const char *system_port)
